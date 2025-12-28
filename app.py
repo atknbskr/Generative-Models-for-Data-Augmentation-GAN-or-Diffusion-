@@ -4,7 +4,7 @@ import torch
 import numpy as np
 import io
 import base64
-from PIL import Image
+from PIL import Image, ImageEnhance, ImageFilter
 import os
 import json
 from models.cgan import Generator, LiteGenerator
@@ -31,8 +31,52 @@ def load_models():
     global generator, classifier_baseline, classifier_augmented
     
     try:
-        # Load generator
-        if os.path.exists('./checkpoints/gan/final_model.pth'):
+        # Load generator - try to load best checkpoint (epoch 190) first, then fallback to others
+        generator_loaded = False
+        
+        # Try loading epoch 190 checkpoint (latest and best - most trained)
+        epoch_190_path = './checkpoints/gan/lite_generator_190.pth'
+        if os.path.exists(epoch_190_path):
+            try:
+                state_dict = torch.load(epoch_190_path, map_location=device)
+                generator = LiteGenerator(latent_dim=100, num_classes=10).to(device)
+                generator.load_state_dict(state_dict)
+                generator.eval()
+                print("Generator loaded from epoch 190 checkpoint (BEST MODEL)")
+                generator_loaded = True
+            except Exception as e:
+                print(f"Failed to load epoch 190 checkpoint: {e}")
+        
+        # Try epoch 180 as fallback
+        if not generator_loaded:
+            epoch_180_path = './checkpoints/gan/lite_generator_180.pth'
+            if os.path.exists(epoch_180_path):
+                try:
+                    state_dict = torch.load(epoch_180_path, map_location=device)
+                    generator = LiteGenerator(latent_dim=100, num_classes=10).to(device)
+                    generator.load_state_dict(state_dict)
+                    generator.eval()
+                    print("Generator loaded from epoch 180 checkpoint")
+                    generator_loaded = True
+                except Exception as e:
+                    print(f"Failed to load epoch 180 checkpoint: {e}")
+        
+        # Try epoch 90 as fallback
+        if not generator_loaded:
+            epoch_90_path = './checkpoints/gan/lite_generator_90.pth'
+            if os.path.exists(epoch_90_path):
+                try:
+                    state_dict = torch.load(epoch_90_path, map_location=device)
+                    generator = LiteGenerator(latent_dim=100, num_classes=10).to(device)
+                    generator.load_state_dict(state_dict)
+                    generator.eval()
+                    print("Generator loaded from epoch 90 checkpoint")
+                    generator_loaded = True
+                except Exception as e:
+                    print(f"Failed to load epoch 90 checkpoint: {e}")
+        
+        # Fallback to final_model.pth
+        if not generator_loaded and os.path.exists('./checkpoints/gan/final_model.pth'):
             checkpoint = torch.load('./checkpoints/gan/final_model.pth', map_location=device)
             state_dict = checkpoint['generator'] if isinstance(checkpoint, dict) and 'generator' in checkpoint else checkpoint
             
@@ -47,7 +91,11 @@ def load_models():
                 generator.load_state_dict(state_dict)
             
             generator.eval()
-            print("Generator loaded successfully")
+            print("Generator loaded from final_model.pth")
+            generator_loaded = True
+        
+        if not generator_loaded:
+            print("Warning: No generator checkpoint found")
         
         # Load baseline classifier
         if os.path.exists('./checkpoints/classifier_baseline/best_model.pth'):
@@ -89,20 +137,50 @@ def generate_images():
     
     try:
         with torch.no_grad():
-            z = torch.randn(num_images, 100).to(device)
+            # Use tighter truncated normal distribution for better quality
+            # Clamp noise to [-1.5, 1.5] for more stable and focused generation
+            z = torch.clamp(torch.randn(num_images, 100), -1.5, 1.5).to(device)
             labels = torch.full((num_images,), class_idx, dtype=torch.long).to(device)
+            
+            # Generate multiple samples and select the best ones (optional - for even better quality)
+            # For now, just generate normally
             gen_imgs = generator(z, labels)
             
             # Denormalize and convert to images
             gen_imgs = gen_imgs.cpu() * 0.5 + 0.5
             gen_imgs = torch.clamp(gen_imgs, 0, 1)
             
-            # Convert to base64
+            # Convert to base64 with aggressive post-processing for maximum sharpness
             images_b64 = []
             for img in gen_imgs:
                 img_np = img.permute(1, 2, 0).numpy()
                 img_np = (img_np * 255).astype(np.uint8)
                 pil_img = Image.fromarray(img_np)
+                
+                # Step 1: Upscale to 128x128 using high-quality LANCZOS resampling
+                # This makes images appear much sharper and clearer
+                pil_img = pil_img.resize((128, 128), Image.Resampling.LANCZOS)
+                
+                # Step 2: Apply aggressive sharpening (multiple passes for better results)
+                # First pass - strong sharpening
+                pil_img = pil_img.filter(ImageFilter.UnsharpMask(radius=2, percent=150, threshold=3))
+                # Second pass - fine detail sharpening
+                pil_img = pil_img.filter(ImageFilter.UnsharpMask(radius=1, percent=100, threshold=2))
+                
+                # Step 3: Enhance contrast more aggressively (1.2 = 20% more contrast)
+                enhancer = ImageEnhance.Contrast(pil_img)
+                pil_img = enhancer.enhance(1.2)
+                
+                # Step 4: Enhance brightness slightly to make details more visible
+                enhancer = ImageEnhance.Brightness(pil_img)
+                pil_img = enhancer.enhance(1.05)
+                
+                # Step 5: Enhance color saturation for more vivid colors
+                enhancer = ImageEnhance.Color(pil_img)
+                pil_img = enhancer.enhance(1.1)
+                
+                # Step 6: Final sharpening pass
+                pil_img = pil_img.filter(ImageFilter.SHARPEN)
                 
                 buffer = io.BytesIO()
                 pil_img.save(buffer, format='PNG')
