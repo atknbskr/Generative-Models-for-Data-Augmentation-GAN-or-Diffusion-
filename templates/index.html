@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GAN Data Augmentation - Research Dashboard</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div class="container">
+        <header class="header">
+            <div class="header-content">
+                <h1 class="title"><span class="gradient-text">GAN-Based Data Augmentation</span></h1>
+                <p class="subtitle">Improving Minority Class Performance with Generative Models</p>
+                <div class="status-bar" id="statusBar">
+                    <div class="status-item">
+                        <span class="status-label">Generator:</span>
+                        <span class="status-value" id="generatorStatus">Loading...</span>
+                    </div>
+                    <div class="status-item">
+                        <span class="status-label">Baseline:</span>
+                        <span class="status-value" id="baselineStatus">Loading...</span>
+                    </div>
+                    <div class="status-item">
+                        <span class="status-label">Augmented:</span>
+                        <span class="status-value" id="augmentedStatus">Loading...</span>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <main class="main-content">
+            <div class="tabs">
+                <button class="tab-btn active" data-tab="generate">Generate Images</button>
+                <button class="tab-btn" data-tab="classify">Classify Images</button>
+                <button class="tab-btn" data-tab="results">Results & Analysis</button>
+            </div>
+
+            <div class="tab-content active" id="generate">
+                <div class="card">
+                    <h2 class="card-title">Generate Synthetic Images</h2>
+                    <div class="form-group">
+                        <label for="classSelect">Select Class:</label>
+                        <select id="classSelect" class="select-input">
+                            <option value="0">Airplane</option>
+                            <option value="1">Automobile</option>
+                            <option value="2" selected>Bird (Minority)</option>
+                            <option value="3">Cat (Minority)</option>
+                            <option value="4">Deer (Minority)</option>
+                            <option value="5">Dog</option>
+                            <option value="6">Frog</option>
+                            <option value="7">Horse</option>
+                            <option value="8">Ship</option>
+                            <option value="9">Truck</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="numImages">Number of Images:</label>
+                        <input type="range" id="numImages" min="1" max="20" value="10" class="slider">
+                        <span id="numImagesValue" class="slider-value">10</span>
+                    </div>
+                    <button id="generateBtn" class="btn btn-primary">Generate Images</button>
+                    <div id="generatedImages" class="image-grid"></div>
+                </div>
+            </div>
+
+            <div class="tab-content" id="classify">
+                <div class="card">
+                    <h2 class="card-title">Classify Images</h2>
+                    <div class="upload-area" id="uploadArea">
+                        <input type="file" id="fileInput" accept="image/*" hidden>
+                        <div class="upload-content">
+                            <p class="upload-text">Click to upload or drag and drop</p>
+                        </div>
+                    </div>
+                    <div id="classificationResults" class="classification-results"></div>
+                </div>
+            </div>
+
+            <div class="tab-content" id="results">
+                <div class="card">
+                    <h2 class="card-title">Experimental Results</h2>
+                    <div id="metricsContainer" class="metrics-container">
+                        <div class="metric-card">
+                            <h3 class="metric-title">Overall Accuracy</h3>
+                            <div class="metric-comparison">
+                                <div class="metric-item">
+                                    <span class="metric-label">Baseline</span>
+                                    <span class="metric-value" id="baselineAcc">-</span>
+                                </div>
+                                <div class="metric-item">
+                                    <span class="metric-label">Augmented</span>
+                                    <span class="metric-value" id="augmentedAcc">-</span>
+                                </div>
+                                <div class="metric-item improvement">
+                                    <span class="metric-label">Improvement</span>
+                                    <span class="metric-value" id="accImprovement">-</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="metric-card">
+                            <h3 class="metric-title">F1-Score</h3>
+                            <div class="metric-comparison">
+                                <div class="metric-item">
+                                    <span class="metric-label">Baseline</span>
+                                    <span class="metric-value" id="baselineF1">-</span>
+                                </div>
+                                <div class="metric-item">
+                                    <span class="metric-label">Augmented</span>
+                                    <span class="metric-value" id="augmentedF1">-</span>
+                                </div>
+                                <div class="metric-item improvement">
+                                    <span class="metric-label">Improvement</span>
+                                    <span class="metric-value" id="f1Improvement">-</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="chart-container">
+                        <h3 class="chart-title">Per-Class Accuracy Comparison</h3>
+                        <canvas id="perClassChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <script src="{{ url_for('static', filename='script.js') }}"></script>
+</body>
+</html>

@@ -1,0 +1,6 @@
+@echo off
+echo Baslatiliyor...
+echo Lutfen bekleyin...
+cd /d "%~dp0"
+.\venv_gpu\Scripts\python.exe app.py
+pause
